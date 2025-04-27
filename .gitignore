@@ -1,0 +1,4 @@
+Manifest.toml
+.CondaPkg/
+.vscode/
+node_modules/
