@@ -7,51 +7,70 @@ export Reader, put!, take!, fetch, isempty
 mutable struct Reader
     in::Channel{String}
     out::Channel{String}
-    task::Task
+    read_task::Task
+    write_task::Task
     inflight::Int
 end
 
-function Reader(cmd = `DEBUG=pw:api node scrape.js`)
+function Reader(debug=false)
+    println("new_reader v8")
     in = Channel{String}(10)
     out = Channel{String}(10)
 
-    p = withenv("DEBUG" => "pw:api") do
-        open(`node scrape.js`, "r+")
-    end
+    cmd() = open(`node scrape.js`, "r+")
+    p = debug ? withenv(cmd, "DEBUG" => "pw:api") : cmd()
     readuntil(p, "<<<READY>>>")
 
-    task = Threads.@spawn begin
+    read_task = Threads.@spawn begin
         while true
             u = take!(in)
-            u == "shutdown" && break
-
-            if endswith(u, ".pdf")
+            @show u
+            if u == "shutdown"
+                println("shutting down the read task.")
+                write(p, "shutdown\n")
+                flush(p)
+                break
+            elseif u == "url"
+                url = take!(in)
+                println("html")
+                write(p, url * "\n")
+                flush(p)
+            elseif u == "file"
+                url = take!(in)
+                println("file")
+                ext = last(splitext(url))
                 fn = take!(in)
-                r = HTTP.get(u)
+                r = HTTP.get(url)
                 fpath = joinpath("outputs", fn)
-                open(fpath, "w") do io
+                @show fpath
+                open(fpath * ext, "w") do io
                     write(io, r.body)
                 end
-                # put!(out, (type = :pdf, data = r.body))
             else
-                write(p, u * "\n")
-                flush(p)
-                s = readuntil(p, "<<<END>>>")
-                put!(out, s)
+                println("Not sure what to do with [$u]")
             end
         end
 
     end
-    bind(in, task)
-    bind(out, task)
 
-    return Reader(in, out, task, 0)
+    write_task = Threads.@spawn begin
+        while true
+            s = readuntil(p, "<<<END>>>")
+            s == "shutdown" && break
+            put!(out, s)
+        end
+    end
+
+    bind(in, read_task)
+    bind(out, write_task)
+
+    return Reader(in, out, read_task, write_task, 0)
 end    
 
-Base.put!(r::Reader, url::String) = (r.inflight += 1; put!(r.in, url))
+Base.put!(r::Reader, fn::String) = put!(r.in, fn)
+Base.put!(r::Reader, typ::String, url::String) = (r.inflight += 1; put!(r.in, typ); put!(r.in, url))
 Base.take!(r::Reader) = (r.inflight -= 1; take!(r.out))
-Base.fetch(r::Reader) = fetch(r.out)
-Base.isempty(r::Reader) = (r.inflight == 0)
+Base.isempty(r::Reader) = isempty(r.out)
 Base.close(r::Reader) = put!(r, "shutdown")
 
 end
