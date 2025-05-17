@@ -1,11 +1,11 @@
-using Revise
+# using Revise
 using Gumbo, Cascadia
 using DataFrames
 
 include("Readers.jl")
 using .Readers
 
-Revise.track(Readers, "Readers.jl")
+# Revise.track(Readers, "Readers.jl")
 # Revise.track(Readers, "Files.jl")
 
 function get_text(root, selector_str)
@@ -27,27 +27,22 @@ function get_files(root, selector_str)
     return res
 end
 
-url = "https://rheto62.canalblog.com/"
+url = "https://rheto62.canalblog.com"
 
-results = Any[]
+df = DataFrame(titre = String[], date = String[], contenu=String[])
 
 r = Readers.Reader()
 
-# put!(r, "shutdown")
-# put!(r, "https://storage.canalblog.com/74/29/538763/118476300.pdf")
-# put!(r, "test.pdf")
-
-# put!(r, "https://rheto62.canalblog.com/archives/2019/03/17/37184901.html")
-# s = take!(r)
-
 put!(r, "url", url)
 
-c = 0
-while true
-    c += 1
-    c ≥ 15 && break
+task = @async while true
     s = take!(r)
-    println("HTML: [$(length(s)) $(s[1:30])]")
+    length(s) == 0 && continue
+    if s == "shutdown"
+        println("task: shutdown")
+        break
+    end
+    println("HTML: [$(length(s))]")
     
     parsed = parsehtml(s)
 
@@ -58,8 +53,11 @@ while true
 
         if pagetype == "blog"
             next = eachmatch(Selector("a.ob-page-next"), parsed.root)
-            # println("Size of next: $(length(next))")
-            !isempty(next) && put!(r, "url", url * attrs(first(next))["href"])
+            println("Size of next: $(length(next))")
+            !isempty(next) && begin
+                println("***** got next $(url * attrs(first(next))["href"])")
+                put!(r, "url", url * attrs(first(next))["href"])
+            end
             
             articles = eachmatch(Selector("div.article"), parsed.root)
             
@@ -80,11 +78,13 @@ while true
             
             matches = eachmatch(Selector("a"), content_div)
             for a in matches
-                println("FILE: [$(String(attrs(a)["href"]))]")
+                href = String(attrs(a)["href"])
+                !startswith(href, "http") && continue
+                println("FILE: [$href]")
                 put!(r, "file", String(attrs(a)["href"]))
-                put!(r, String(text(a)))
+                put!(r, String(date * "-" * text(a)))
             end
-            push!(results, (title=title, date=date, content=content))
+            push!(df, (titre=title, date=date, contenu=content))
         else
             println("Unexpected page type: $pagetype")
         end
@@ -92,25 +92,5 @@ while true
         println("not og:type tag")
     end
 end
-put!(r, "shutdown")
-close(r)
 
-r = Reader(true)
-for _=1:15
-    put!(r, "https://rheto62.canalblog.com/archives/2019/03/17/37184901.html")
-end
-s = take!(r)
-parsed = parsehtml(s)
-m = eachmatch(Selector("meta[property='og:type']"), parsed.root)
-pagetype = attrs(first(m))["content"]
-println("Content type: $pagetype")
-
-
-fn_s = eachmatch(sel"nav.breadcrumb ul li", parsed.root) |> last |> nodeText
-date_s = eachmatch(sel"div.date-header", parsed.root) |> first |> nodeText
-
-m = eachmatch(sel"div.single-content_content p", parsed.root) .|> nodeText
-
-
-
-close(r)
+close(r);

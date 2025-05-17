@@ -6,6 +6,7 @@ const activePages = new Set();
   const browser = await chromium.launch({ headless: true });
 
   console.log("<<<READY>>>");
+  // console.error("SCRAPE online");
   
   // Read lines from stdin
   const readline = require('readline');
@@ -18,13 +19,11 @@ const activePages = new Set();
   rl.on('line', async (url) => {
     // console.error(url)
     if (url.trim() === '') return;
-    
-    if (url === 'shutdown') {
-      console.log("shutdown");
-      console.log("<<<END>>>");
+    if (url == 'shutdown') {
+      console.error("scrape.js: shutdown")
       rl.close();
       return;
-    }
+    };
 
     const page = await browser.newPage();
     activePages.add(page);
@@ -73,6 +72,7 @@ const activePages = new Set();
       console.error('Error loading page:', e);
       console.log("<<<END>>>");
     } finally {
+      // console.error('SCRAPE closing page')
       await page.close();
       activePages.delete(page);
     }
@@ -87,7 +87,8 @@ const activePages = new Set();
       }
     }
     await browser.close();
-    console.log("shutdown\n<<<END>>>")
+    console.log("shutdown")
+    console.log("<<<END>>>")
     process.exit(0);
   });
 })();
