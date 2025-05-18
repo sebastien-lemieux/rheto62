@@ -3,3 +3,5 @@ Manifest.toml
 .vscode/
 node_modules/
 outputs/
+archive/
+*.zip

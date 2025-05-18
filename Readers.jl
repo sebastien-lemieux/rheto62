@@ -2,7 +2,7 @@ module Readers
 
 using HTTP
 
-export Reader, put!, take!, isempty
+export Reader, put!, take!, clear!, isempty
 
 mutable struct Reader
     in::Channel{String}
@@ -12,9 +12,9 @@ mutable struct Reader
 end
 
 function Reader(debug=false)
-    println("new_reader v11")
-    in = Channel{String}(10)
-    out = Channel{String}(10)
+    println("new_reader v12")
+    in = Channel{String}(1000)
+    out = Channel{String}(1000)
 
     cmd() = open(`node scrape.js`, "r+")
     p = debug ? withenv(cmd, "DEBUG" => "pw:api") : cmd()
@@ -45,16 +45,15 @@ function Reader(debug=false)
                     continue
                 end
                 resp.status != 200 && continue # lost file...
-                fpath = joinpath("outputs", fn)
-                @show fpath
-                open(fpath * ext, "w") do io
+                @show fn * ext
+                open(fn * ext, "w") do io
                     write(io, resp.body)
                 end
             else
                 println("Not sure what to do with [$u]")
             end
         end
-
+        println("Reader.read_task: done")
     end
 
     write_task = Threads.@spawn begin
@@ -67,6 +66,7 @@ function Reader(debug=false)
             end
             put!(out, s)
         end
+        println("Reader.write_task: done")
     end
 
     bind(in, read_task)
@@ -75,10 +75,11 @@ function Reader(debug=false)
     return Reader(in, out, read_task, write_task)
 end    
 
+clear!(r::Reader) = while isready(r.out) take!(r.out) end
 Base.put!(r::Reader, fn::String) = put!(r.in, fn)
 Base.put!(r::Reader, typ::String, url::String) = (put!(r.in, typ); put!(r.in, url))
 Base.take!(r::Reader) = take!(r.out)
 Base.isempty(r::Reader) = isempty(r.out)
-Base.close(r::Reader) = put!(r, "shutdown")
+Base.close(r::Reader) = begin clear!(r); put!(r, "shutdown") end
 
 end
