@@ -1,5 +1,6 @@
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Cascadia = "54eefc05-d75b-58de-a785-1a3403f0919f"
 CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -8,4 +9,5 @@ HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 NodeJS = "2bd173c7-0d6d-553b-b6af-13a54713934c"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+StringEncodings = "69024149-9ee7-55f6-a4c4-859efe599b68"
 WebDriver = "05625dda-b54a-434a-8c43-5c7937dfa4f0"

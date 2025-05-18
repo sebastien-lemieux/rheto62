@@ -1,6 +1,6 @@
 using Revise
 using Gumbo, Cascadia
-using DataFrames
+using DataFrames, CSV
 using UUIDs
 
 include("Readers.jl")
@@ -70,7 +70,7 @@ task = @async while true
             @show isalbum(parsed.root)
             if isalbum(parsed.root)
                 album_title = eachmatch(Selector("h2.title"), parsed.root)[1] |> text
-                path = mkpath("outputs/$album_title")
+                path = mkpath("archive/$album_title")
                 println("Album: $album_title -> $path")
 
                 m = eachmatch(Selector("img.ob-slideshow-img"), parsed.root)
@@ -122,7 +122,7 @@ task = @async while true
             matches = eachmatch(Selector("a"), content_div)
             
             for a in matches
-                path = mkpath("outputs/$title-$date-$id")
+                path = mkpath("archive/$title-$date-$id")
                 href = String(attrs(a)["href"])
                 !startswith(href, "http") && continue
                 @show href
@@ -157,3 +157,8 @@ end
 put!(r, "url", url)
 
 close(r)
+
+open("archive/article.csv", "w") do io
+    write(io, codeunits("\ufeff"))       # Write UTF-8 BOM
+    CSV.write(io, df; append=true)   # French/English Excel-compatible
+end
